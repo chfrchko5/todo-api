@@ -1,6 +1,7 @@
 services:
   db:
     image: postgres
+    container_name: postgres-database
     restart: always
     shm_size: 128mb
     volumes:
@@ -9,14 +10,25 @@ services:
       POSTGRES_DB: users
       POSTGRES_USER: bobert
       POSTGRES_PASSWORD: password
+    ports:
+      - 5432:5432
 
   workbench:
-    image: lscr.io/linuxserver/mysql-workbench:latest
+    image: dpage/pgadmin4
+    container_name: postgresql-workbench
+    ports:
+      - 5000:80
     environment:
-      - PIXELFLUX_WAYLAND=true
-      # Ensure these point to the rendered node injected by the runtime (usually renderD128)
-      - DRINODE=/dev/dri/renderD128
-      - DRI_NODE=/dev/dri/renderD128
+      PGADMIN_DEFAULT_EMAIL: admin@gmail.com
+      PGADMIN_DEFAULT_PASSWORD_FILE: /run/secrets/pgadmin_password
+    depends_on:
+      - db
+    secrets:
+      - pgadmin_password
 
 volumes:
   postgres-data:
+
+secrets:
+  pgadmin_password:
+    file: ./pgadmin_password.txt
