@@ -6,8 +6,7 @@ from sqlalchemy import Column, Integer, String, Text, ForeignKey
 class User(Base):
     __tablename__ = "users"
 
-    id       = Column(Integer, primary_key=True, nullable=False)
-    # TODO: constraint for the email (must fit the <>@<>.<>)
+    user_id  = Column(Integer, primary_key=True, nullable=False)
     email    = Column(String(50), unique=True, nullable=False)
     password = Column(String, nullable=False)
 
@@ -16,9 +15,9 @@ class User(Base):
 class Todo(Base):
     __tablename__ = "todos"
 
-    id          =    Column(Integer, primary_key=True, nullable=False)
+    todo_id     = Column(Integer, primary_key=True, nullable=False)
     title       = Column(String(50), nullable=False)
     description = Column(Text, nullable=False)
-    owner_id    = Column(Integer, ForeignKey("users.id"))
+    owner_id    = Column(Integer, ForeignKey("users.user_id"))
 
     owner       = relationship("User", back_populates="todos")

@@ -11,13 +11,13 @@ services:
       POSTGRES_USER: bobert
       POSTGRES_PASSWORD: password
     ports:
-      - 5432:5432
+      - "5432":"5432"
 
   workbench:
     image: dpage/pgadmin4
     container_name: postgresql-workbench
     ports:
-      - 5000:80
+      - "5000":"80"
     environment:
       PGADMIN_DEFAULT_EMAIL: admin@gmail.com
       PGADMIN_DEFAULT_PASSWORD_FILE: /run/secrets/pgadmin_password
