@@ -20,6 +20,7 @@ class LoginResponse(BaseModel):
     access_token: str
     token_type: str
 
-class AddTodo(BaseModel):
+
+class TodoData(BaseModel):
     title: str
-    description: str = Field(min_length=1, max_length=3000)
+    description: str

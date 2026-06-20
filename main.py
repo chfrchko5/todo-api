@@ -1,6 +1,7 @@
 from fastapi import Depends, FastAPI, status, HTTPException
+from contextlib import asynccontextmanager
 from db_init import engine, Base
-from schemas import Register, RegisterResponse, Login, LoginResponse, AddTodo
+from schemas import Register, RegisterResponse, Login, LoginResponse, TodoData
 from db_init import get_db
 from sqlalchemy.orm import Session
 from sqlalchemy_db import User, Todo
@@ -8,12 +9,13 @@ from sqlalchemy.exc import IntegrityError
 from security import hash_password, verify_password, create_access_token, decode_token
 from api_check import get_current_user
 
-app = FastAPI()
 
-# TODO: replace the on_event with lifespan ting
-@app.on_event("startup")
-def startup():
+@asynccontextmanager
+async def lifespan(app: FastAPI):
     Base.metadata.create_all(bind=engine)
+    yield
+
+app = FastAPI(lifespan=lifespan)
 
 @app.post("/register", response_model=RegisterResponse, status_code=status.HTTP_201_CREATED)
 def register_user(
@@ -58,10 +60,82 @@ def login_user(
         "token_type": "bearer"
     }
 
+@app.get("/todos")
+def get_todos(
+        page: int = 1,
+        limit: int = 10,
+        current_user: dict = Depends(get_current_user),
+        db: Session = Depends(get_db)
+):
+    offset = (page - 1) * limit
+
+    todos = (
+        db.query(Todo)
+        .filter(Todo.owner_id == current_user["user_id"])
+        .offset(offset)
+        .limit(limit)
+        .all()
+    )
+
+    total = db.query(Todo).filter(Todo.owner_id == current_user["user_id"]).count()
+
+    return {
+        "data": todos,
+        "page": page,
+        "limit": limit,
+        "total": total,
+        "pages": -(-total // limit)  # ceiling division, e.g. 23 todos → 3 pages
+    }
+
+
 @app.post("/todos")
 def add_todo(
-        todo_data: AddTodo, current_user: dict = Depends(get_current_user())
-        # TODO: add the database table for todos
+        todo_data: TodoData,
+        current_user: dict = Depends(get_current_user),
+        db: Session = Depends(get_db)
 ):
     user_id = current_user["user_id"]
-    new_todo = Todo(title=todo_data.title, owner_id=user_id)
+    new_todo = Todo(title=todo_data.title, description=todo_data.description, owner_id=user_id)
+    db.add(new_todo)
+    db.commit()
+    db.refresh(new_todo)
+    return new_todo
+
+@app.put("/todos/{todo_id}")
+def change_todo(
+    todo_id: int,
+    todo_data: TodoData,
+    current_user: dict = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    todo = db.query(Todo).filter(
+        Todo.todo_id == todo_id,
+        Todo.owner_id == current_user["user_id"]
+    ).first()
+
+    if not todo:
+        raise HTTPException(status_code=404, detail="todo not found")
+
+    todo.title = todo_data.title
+    todo.description = todo_data.description
+    db.commit()
+    db.refresh(todo)
+    return todo
+
+@app.delete("/todos/{todo_id}")
+def delete_todo(
+    todo_id: int,
+    current_user: dict = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    todo = db.query(Todo).filter(
+        Todo.todo_id == todo_id,
+        Todo.owner_id == current_user["user_id"]
+    ).first()
+
+    db.delete(todo)
+    db.commit()
+    if not todo:
+        raise HTTPException(status_code=404, detail="todo not found")
+
+    return f"Successfully deleted task {todo_id}"

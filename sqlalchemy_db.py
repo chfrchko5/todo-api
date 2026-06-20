@@ -17,7 +17,7 @@ class Todo(Base):
 
     todo_id     = Column(Integer, primary_key=True, nullable=False)
     title       = Column(String(50), nullable=False)
-    description = Column(Text, nullable=False)
+    description = Column(String, nullable=False)
     owner_id    = Column(Integer, ForeignKey("users.user_id"))
 
     owner       = relationship("User", back_populates="todos")
